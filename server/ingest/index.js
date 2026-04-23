@@ -1,5 +1,5 @@
 import { Inngest } from 'inngest'
-import { prisma } from '../src/db.js'
+import { getPrisma } from '../src/db.js'
 
 export const inngest = new Inngest({ id: 'my-app' })
 
@@ -8,6 +8,7 @@ export const functions = [
         { id: 'sync-user-from-clerk', triggers: [{ event: 'clerk/user.created' }] },
         async ({ event }) => {
             const { data } = event
+            const prisma = getPrisma()
 
             await prisma.user.create({
                 data: {
@@ -23,6 +24,7 @@ export const functions = [
         { id: 'sync-user-update-from-clerk', triggers: [{ event: 'clerk/user.updated' }] },
         async ({ event }) => {
             const { data } = event
+            const prisma = getPrisma()
 
             await prisma.user.update({
                 where: {
@@ -40,6 +42,7 @@ export const functions = [
         { id: 'sync-user-delete-from-clerk', triggers: [{ event: 'clerk/user.deleted' }] },
         async ({ event }) => {
             const { data } = event
+            const prisma = getPrisma()
 
             await prisma.user.delete({
                 where: {
