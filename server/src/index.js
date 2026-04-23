@@ -3,7 +3,7 @@ import cors from 'cors'
 import { clerkMiddleware, requireAuth, getAuth } from '@clerk/express'
 import { serve } from 'inngest/express'
 import { Webhook } from 'standardwebhooks'
-import { prisma } from './db.js'
+import { getPrisma } from './db.js'
 import { config } from './config.js'
 import { inngest, functions } from '../ingest/index.js'
 
@@ -35,6 +35,8 @@ app.post('/api/clerk/webhook', express.raw({ type: 'application/json' }), async 
         if (!eventType || !userData?.id) {
             return res.status(400).json({ ok: false, message: 'Invalid Clerk webhook payload' })
         }
+
+        const prisma = getPrisma()
 
         if (eventType === 'user.created' || eventType === 'user.updated') {
             await prisma.user.upsert({
@@ -81,6 +83,7 @@ app.get('/health', (req, res) => {
 
 app.get('/api/projects', requireAuth(), async (req, res, next) => {
     try {
+        const prisma = getPrisma()
         const projects = await prisma.project.findMany({
             take: 10,
             orderBy: { createdAt: 'desc' },
