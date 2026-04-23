@@ -7,7 +7,6 @@ import { config } from './config.js'
 import { inngest, functions } from '../ingest/index.js'
 
 const app = express()
-const port = config.port
 
 app.use(
     cors({
@@ -54,6 +53,12 @@ app.use((error, req, res, next) => {
     res.status(500).json({ ok: false, message: 'Internal server error' })
 })
 
-app.listen(port, () => {
-    console.log(`Server listening on http://localhost:${port}`)
-})
+export { app }
+
+if (process.env.VERCEL !== '1') {
+    const port = config.port
+
+    app.listen(port, () => {
+        console.log(`Server listening on http://localhost:${port}`)
+    })
+}
