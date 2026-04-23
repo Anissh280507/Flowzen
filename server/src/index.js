@@ -24,17 +24,46 @@ app.post('/api/clerk/webhook', express.raw({ type: 'application/json' }), async 
 
         const wh = new Webhook(config.clerkWebhookSecret)
         const payload = wh.verify(req.body.toString('utf8'), req.headers)
-        const eventName = `clerk/user.${payload.type.split('.').pop()}`
+        const eventType = payload?.type
+        const userData = payload?.data
+        const eventName = `clerk/${eventType}`
+
+        if (!eventType || !userData?.id) {
+            return res.status(400).json({ ok: false, message: 'Invalid Clerk webhook payload' })
+        }
+
+        if (eventType === 'user.created' || eventType === 'user.updated') {
+            await prisma.user.upsert({
+                where: { id: userData.id },
+                create: {
+                    id: userData.id,
+                    email: userData?.email_addresses?.[0]?.email_address || '',
+                    name: `${userData?.first_name || ''} ${userData?.last_name || ''}`.trim(),
+                    image: userData?.image_url || '',
+                },
+                update: {
+                    email: userData?.email_addresses?.[0]?.email_address || '',
+                    name: `${userData?.first_name || ''} ${userData?.last_name || ''}`.trim(),
+                    image: userData?.image_url || '',
+                },
+            })
+        }
+
+        if (eventType === 'user.deleted') {
+            await prisma.user.deleteMany({
+                where: { id: userData.id },
+            })
+        }
 
         await inngest.send({
             name: eventName,
-            data: payload.data,
+            data: userData,
         })
 
         return res.json({ ok: true })
     } catch (error) {
         console.error('Clerk webhook error:', error)
-        return res.status(400).json({ ok: false, message: 'Invalid webhook signature' })
+        return res.status(400).json({ ok: false, message: 'Webhook processing failed' })
     }
 })
 
