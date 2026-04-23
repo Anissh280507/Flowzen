@@ -23,7 +23,11 @@ app.post('/api/clerk/webhook', express.raw({ type: 'application/json' }), async 
         }
 
         const wh = new Webhook(config.clerkWebhookSecret)
-        const payload = wh.verify(req.body.toString('utf8'), req.headers)
+        const payload = wh.verify(req.body.toString('utf8'), {
+            'webhook-id': req.headers['svix-id'],
+            'webhook-timestamp': req.headers['svix-timestamp'],
+            'webhook-signature': req.headers['svix-signature'],
+        })
         const eventType = payload?.type
         const userData = payload?.data
         const eventName = `clerk/${eventType}`
