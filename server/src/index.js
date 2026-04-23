@@ -2,6 +2,7 @@ import express from 'express'
 import cors from 'cors'
 import { clerkMiddleware, requireAuth, getAuth } from '@clerk/express'
 import { serve } from 'inngest/express'
+import { Webhook } from 'standardwebhooks'
 import { prisma } from './db.js'
 import { config } from './config.js'
 import { inngest, functions } from '../ingest/index.js'
@@ -14,6 +15,29 @@ app.use(
         credentials: true,
     })
 )
+
+app.post('/api/clerk/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+    try {
+        if (!config.clerkWebhookSecret) {
+            return res.status(500).json({ ok: false, message: 'Missing Clerk webhook secret' })
+        }
+
+        const wh = new Webhook(config.clerkWebhookSecret)
+        const payload = wh.verify(req.body.toString('utf8'), req.headers)
+        const eventName = `clerk/user.${payload.type.split('.').pop()}`
+
+        await inngest.send({
+            name: eventName,
+            data: payload.data,
+        })
+
+        return res.json({ ok: true })
+    } catch (error) {
+        console.error('Clerk webhook error:', error)
+        return res.status(400).json({ ok: false, message: 'Invalid webhook signature' })
+    }
+})
+
 app.use(express.json())
 app.use(clerkMiddleware())
 app.use('/api/inngest', serve({ client: inngest, functions }))
